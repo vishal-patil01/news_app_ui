@@ -1,0 +1,22 @@
+<div class="app-container">
+    <div class="search-container">
+      <input 
+        type="text" 
+        [(ngModel)]="searchQuery" 
+        (keydown.enter)="searchStories()"
+        placeholder="Search for stories..." />
+      <button (click)="searchStories()">Search</button>
+    </div>
+  
+    <app-loader *ngIf="loading"></app-loader>
+  
+    <div class="story-list">
+      <div class="story-card" *ngFor="let story of stories | paginate: { itemsPerPage: itemsPerPage, currentPage: page }">
+        <h3>{{ story.Title }}</h3>
+        <a [href]="story.Url" target="_blank">{{ story.Url }}</a>
+      </div>
+    </div>
+  
+    <pagination-controls (pageChange)="page = $event"></pagination-controls>
+  </div>
+  

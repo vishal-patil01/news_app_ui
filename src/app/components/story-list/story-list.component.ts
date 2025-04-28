@@ -33,42 +33,38 @@ export class StoryListComponent implements OnInit {
   constructor(private hackernewsService: HackernewsService) {}
 
   ngOnInit(): void {
-    this.getTopStories();
+    this.searchStories();
   }
 
-  getStories(apiCall: Observable<any>, successMessage: string, fallback?: boolean): void {
-    this.loading = true;
-  
-    apiCall.subscribe({
-      next: (data:any) => {
-        this.stories = data.Data;
+  // Function to fetch stories based on the search query or default to top stories
+  searchStories(): void {
+    this.loading = true; // Set loading to true when starting the fetch
+    var query=this.searchQuery.trim();
+     // Trim whitespace from the search query
+    this.hackernewsService.getStories(query).subscribe({
+      next: (data: any) => {
         this.loading = false;
-        this.page = 1;
+        if (!data.Data || data.Data.length === 0) {
+          this.success = false;
+          this.message = 'No data found for searched term.';
+          this.stories = [];
+          return; // Prevents further execution
+        }
+    
+        this.stories = data.Data;
         this.success = true;
-        this.message = successMessage;
+        this.message = query ? 'Search completed successfully!' : 'Top stories fetched successfully!';
       },
-      error: (err:any) => {
+      error: (err: any) => {
         console.error('Error fetching stories:', err);
         this.loading = false;
         this.success = false;
-        this.message = fallback ? 'Failed to fetch top stories.' : 'No data found for searched term.';
+        this.message = query ? 'No data found for searched term.' : 'Failed to fetch top stories.';
         this.stories = [];
       },
-      complete: () => {
-        console.log('Fetch completed');
-      }
-    });
-  }
-  
-  getTopStories(): void {
-    this.getStories(this.hackernewsService.getTopStories(), 'Top stories fetched successfully!', true);
-  }
-  
-  searchStories(): void {
-    if (this.searchQuery.trim()) {
-      this.getStories(this.hackernewsService.searchStories(this.searchQuery), 'Search completed successfully!');
-    } else {
-      this.getTopStories();
-    }
+        complete: () => {
+          console.log('Fetch completed');
+        }
+      });
   }
 }

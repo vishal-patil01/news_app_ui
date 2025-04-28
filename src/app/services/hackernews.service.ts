@@ -11,11 +11,8 @@ export class HackernewsService {
 
   constructor(private http: HttpClient) {}
 
-  getTopStories(): Observable<any> {
-    return this.http.get(`${this.baseUrl}/stories`);
-  }
-
-  searchStories(query: string): Observable<any> {
-    return this.http.get(`${this.baseUrl}/stories?searchTerm=${query}`);
+  getStories(query?: string): Observable<any> {
+    const url = query ? `${this.baseUrl}/stories?searchTerm=${query}` : `${this.baseUrl}/stories`;
+    return this.http.get(url);
   }
 }

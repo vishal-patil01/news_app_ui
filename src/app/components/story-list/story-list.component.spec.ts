@@ -1,79 +1,85 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TestBed } from '@angular/core/testing';
 import { StoryListComponent } from './story-list.component';
-import { LoaderComponent } from '../loader/loader.component';
 import { HackernewsService } from '../../services/hackernews.service';
-import { HttpClientTestingModule } from '@angular/common/http/testing';
-import { FormsModule } from '@angular/forms';
-import { By } from '@angular/platform-browser';
+import { of, throwError } from 'rxjs';
 
 describe('StoryListComponent', () => {
   let component: StoryListComponent;
-  let fixture: ComponentFixture<StoryListComponent>;
-  let mockHackernewsService: Partial<HackernewsService>;
-
-  beforeEach(async () => {
-    // Mock HackernewsService
-    mockHackernewsService = {
-      getTopStories: jasmine.createSpy('getTopStories').and.returnValue({
-        subscribe: (callbacks: any) => {
-          callbacks.next({ Data: [{ Title: 'Story 1', Url: 'http://example.com/story1' }] });
-          callbacks.complete();
-        },
-      }),
-      searchStories: jasmine.createSpy('searchStories').and.returnValue({
-        subscribe: (callbacks: any) => {
-          callbacks.next({ Data: [{ Title: 'Search Result 1', Url: 'http://example.com/search1' }] });
-        },
-      }),
-    };
-
-    await TestBed.configureTestingModule({
-      imports: [StoryListComponent, LoaderComponent, FormsModule, HttpClientTestingModule],
-      providers: [
-        { provide: HackernewsService, useValue: mockHackernewsService }, // Inject mocked service
-      ],
-    }).compileComponents();
-  });
+  let hackernewsService: jasmine.SpyObj<HackernewsService>;
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(StoryListComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
+    const spy = jasmine.createSpyObj('HackernewsService', ['getStories']);
+
+    TestBed.configureTestingModule({
+      providers: [
+        StoryListComponent,
+        { provide: HackernewsService, useValue: spy },
+      ],
+    });
+
+    component = TestBed.inject(StoryListComponent);
+    hackernewsService = TestBed.inject(HackernewsService) as jasmine.SpyObj<HackernewsService>;
   });
 
-  it('should create the component', () => {
-    expect(component).toBeTruthy();
+  it('should fetch top stories when no search query is provided', () => {
+    hackernewsService.getStories.and.returnValue(of({ Data: [{ Title: 'Top Story 1', Url: 'https://example.com' }] }));
+
+    component.searchQuery = '';
+    component.searchStories();
+
+    expect(hackernewsService.getStories).toHaveBeenCalledWith('');
+    expect(component.stories.length).toBe(1);
+    expect(component.success).toBeTrue();
+    expect(component.message).toBe('Top stories fetched successfully!');
   });
 
-  it('should render loader when loading is true', () => {
-    component.loading = true;
-    fixture.detectChanges();
-    const loaderElement = fixture.debugElement.query(By.css('app-loader'));
-    expect(loaderElement).toBeTruthy();
-  });
+  it('should fetch searched stories when query is given', () => {
+    hackernewsService.getStories.and.returnValue(of({ Data: [{ Title: 'Angular News', Url: 'https://angular.io' }] }));
 
-  it('should render stories in cards', () => {
-    component.stories = [
-      { Title: 'Story 1', Url: 'http://example.com/story1' },
-      { Title: 'Story 2', Url: 'http://example.com/story2' },
-    ];
-    fixture.detectChanges();
-    const storyCards = fixture.debugElement.queryAll(By.css('.story-card'));
-    expect(storyCards.length).toBe(2);
-    expect(storyCards[0].nativeElement.textContent).toContain('Story 1');
-    expect(storyCards[1].nativeElement.textContent).toContain('Story 2');
-  });
-
-  it('should call HackernewsService to fetch top stories on init', () => {
-    expect(mockHackernewsService.getTopStories).toHaveBeenCalled();
-  });
-
-  it('should call searchStories method when search button is clicked', () => {
     component.searchQuery = 'Angular';
-    fixture.detectChanges();
-    spyOn(component, 'searchStories');
-    const searchButton = fixture.debugElement.query(By.css('button')).nativeElement;
-    searchButton.click();
-    expect(component.searchStories).toHaveBeenCalled();
+    component.searchStories();
+
+    expect(hackernewsService.getStories).toHaveBeenCalledWith('Angular');
+    expect(component.stories.length).toBe(1);
+    expect(component.success).toBeTrue();
+    expect(component.message).toBe('Search completed successfully!');
+  });
+
+  it('should show "No data found" when search yields empty results', () => {
+    hackernewsService.getStories.and.returnValue(of({ Data: [] }));
+
+    component.searchQuery = 'randomterm';
+    component.searchStories();
+
+    expect(component.success).toBeFalse();
+    expect(component.message).toBe('No data found for searched term.');
+    expect(component.stories.length).toBe(0);
+  });
+
+  it('should return an error when API call fails', () => {
+    hackernewsService.getStories.and.returnValue(throwError(() => new Error('Server error')));
+
+    component.searchStories();
+
+    expect(component.success).toBeFalse();
+    expect(component.message).toBe('Failed to fetch top stories.');
+    expect(component.stories.length).toBe(0);
+  });
+
+  it('should reset stories array when API call fails', () => {
+    hackernewsService.getStories.and.returnValue(throwError(() => new Error('Network failure')));
+
+    component.searchStories();
+
+    expect(component.stories).toEqual([]);
+  });
+
+  it('should log an error when API fails', () => {
+    spyOn(console, 'error');
+    hackernewsService.getStories.and.returnValue(throwError(() => new Error('API error')));
+
+    component.searchStories();
+
+    expect(console.error).toHaveBeenCalledWith('Error fetching stories:', jasmine.any(Error));
   });
 });

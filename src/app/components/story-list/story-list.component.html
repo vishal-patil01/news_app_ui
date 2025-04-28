@@ -7,6 +7,7 @@
         placeholder="Search for stories..." />
       <button (click)="searchStories()">Search</button>
     </div>
+  <app-alert [message]="message" [type]="success"></app-alert>
   
     <app-loader *ngIf="loading"></app-loader>
   
